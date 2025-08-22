@@ -1,0 +1,47 @@
+meta {
+  name: 生成整體資料
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{local_url}}/generator/generate-coherent-survey
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "rows": 10,
+    "questions": [
+      {
+        "name": "gender",
+        "question": "您的生理性別是？",
+        "type": "單選",
+        "options": ["男", "女"]
+      },
+      {
+        "name": "age",
+        "question": "您的年齡是？",
+        "type": "數字",
+        "options": []
+      },
+      {
+        "name": "is_pregnant",
+        "question": "您目前是否懷孕？",
+        "type": "是非",
+        "options": ["是", "否"]
+      },
+      {
+        "name": "occupation",
+        "question": "您的職業是什麼？",
+        "type": "簡答",
+        "options": []
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+}

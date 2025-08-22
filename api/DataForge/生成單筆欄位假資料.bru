@@ -1,0 +1,40 @@
+meta {
+  name: 生成單筆欄位假資料
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{local_url}}/generator/generate-excel
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "rows": 10,
+    "fields": [
+      {
+        "name": "ApplicantName",
+        "type": "full-name-tw",
+        "options": {}
+      },
+      {
+        "name": "IDCardNumber",
+        "type": "taiwan-id-card",
+        "options": {
+          "gender": "female"
+        }
+      },
+      {
+        "name": "ContactPhone",
+        "type": "taiwan-mobile-phone",
+        "options": {}
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+}
