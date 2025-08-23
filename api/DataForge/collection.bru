@@ -1,3 +1,12 @@
+auth {
+  mode: apikey
+}
+
+auth:apikey {
+  key: x-api-key
+  value: cherites
+  placement: header
+}
 vars:pre-request {
   local_url: http://localhost:3000/api
 }

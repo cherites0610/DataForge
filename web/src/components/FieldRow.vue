@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { generatorOptions, type GeneratorOption } from '@/config/generators'
-
-interface Field {
-  id: number
-  name: string
-  type: string
-  options: Record<string, any>
-}
+import type { Field } from '@/types'
 
 const props = defineProps<{
   field: Field
   index: number
+  availableGenerators: Array<{ label: string; options: Array<{ value: string; label: string }> }>
 }>()
 
 const emit = defineEmits(['remove', 'update'])
@@ -22,7 +17,12 @@ const localField = computed({
 })
 
 const currentGeneratorOptions = computed<GeneratorOption[]>(() => {
-  return generatorOptions[localField.value.type]?.options || []
+  // 檢查當前的 type 是否存在於靜態的 generatorOptions 中
+  if (Object.prototype.hasOwnProperty.call(generatorOptions, localField.value.type)) {
+    return generatorOptions[localField.value.type]?.options || []
+  }
+  // 如果不存在 (代表是自訂範本的 UUID)，則沒有選項
+  return []
 })
 
 // 當生成類型改變時，重設 options
@@ -53,12 +53,18 @@ const getChoicesAsArray = (choicesString: string) => {
       </el-col>
       <el-col :span="8">
         <el-select v-model="localField.type" placeholder="生成類型" class="w-full">
-          <el-option
-            v-for="(config, key) in generatorOptions"
-            :key="key"
-            :label="config.label"
-            :value="key"
-          />
+          <el-option-group
+            v-for="group in availableGenerators"
+            :key="group.label"
+            :label="group.label"
+          >
+            <el-option
+              v-for="item in group.options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-option-group>
         </el-select>
       </el-col>
       <el-col :span="8" class="text-right">

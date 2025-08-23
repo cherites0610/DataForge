@@ -23,7 +23,13 @@ const openUsageGuide = () => {
         <img src="/logo.png" alt="數造工坊 DataForge Logo" class="h-10 mr-3" />
         <h1 class="text-2xl font-bold text-gray-800">數造工坊 DataForge</h1>
       </div>
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
+        <RouterLink to="/">
+          <el-button>首頁</el-button>
+        </RouterLink>
+        <RouterLink to="/prompts">
+          <el-button>Prompt 庫</el-button>
+        </RouterLink>
         <el-button @click="openUsageGuide">使用教學</el-button>
         <el-button @click="openApiKeyDialog">設定 API Key</el-button>
       </div>

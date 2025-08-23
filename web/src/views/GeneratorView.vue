@@ -1,32 +1,57 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import FieldRow from '@/components/FieldRow.vue'
 import QuestionRow from '@/components/QuestionRow.vue'
 import { generatorOptions } from '@/config/generators'
-import { generateCoherentSurveyApi, generateExcelApi } from '@/services/api'
 import { ElMessage } from 'element-plus'
-
-interface Field {
-  id: number
-  name: string
-  type: string
-  options: Record<string, any>
-}
-
-interface Question {
-  id: number
-  name: string
-  question?: string
-  generatorType: string
-  answerType: string
-  options: Record<string, any>
-}
+import { generateExcelApi, generateCoherentSurveyApi, getPromptTemplates } from '@/services/api'
+import type { Question, Field, PromptTemplate } from '@/types'
 
 const questions = ref<Question[]>([])
 const fields = ref<Field[]>([])
 const isLoading = ref(false)
 const totalRows = ref(10)
 const activeTab = ref('fieldMode')
+
+const selectedCoherentTemplate = ref<string | null>(null)
+const userTemplates = ref<PromptTemplate[]>([])
+const templatesLoading = ref(true)
+
+onMounted(async () => {
+  try {
+    userTemplates.value = await getPromptTemplates()
+  } catch (error) {
+    ElMessage.error('載入自訂範本失敗')
+  } finally {
+    templatesLoading.value = false
+  }
+})
+
+const coherentTemplates = computed(() => {
+  return userTemplates.value.filter((t) => t.type === 'coherent')
+})
+
+const combinedGeneratorOptions = computed(() => {
+  const ruleBased = {
+    label: '規則生成器',
+    options: Object.entries(generatorOptions).map(([key, value]) => ({
+      value: key,
+      label: value.label,
+    })),
+  }
+
+  const customTemplates = {
+    label: '自訂範本 (獨立型)',
+    options: userTemplates.value
+      .filter((t) => t.type === 'independent')
+      .map((t) => ({
+        value: t.id, // 注意：value 是範本的 UUID
+        label: t.name,
+      })),
+  }
+
+  return [ruleBased, customTemplates]
+})
 
 const addField = () => {
   const defaultType = Object.keys(generatorOptions)[0]
@@ -123,7 +148,13 @@ const handleGenerate = async () => {
         options: q.options,
       }))
 
-      blob = await generateCoherentSurveyApi({ rows: totalRows.value, questions: cleanQuestions })
+      const payload = {
+        rows: totalRows.value,
+        questions: cleanQuestions,
+        templateId: selectedCoherentTemplate.value,
+      }
+
+      blob = await generateCoherentSurveyApi(payload)
     }
 
     // Common Download Logic
@@ -165,6 +196,7 @@ const handleGenerate = async () => {
             :key="field.id"
             :field="field"
             :index="index"
+            :available-generators="combinedGeneratorOptions"
             @remove="removeField(field.id)"
             @update="updateField"
           />
@@ -173,6 +205,22 @@ const handleGenerate = async () => {
       </el-tab-pane>
 
       <el-tab-pane label="問卷模式 (LLM)" name="surveyMode">
+        <el-form-item label="問卷生成風格 (Prompt 範本)">
+          <el-select
+            v-model="selectedCoherentTemplate"
+            placeholder="使用預設風格"
+            class="w-full"
+            clearable
+          >
+            <el-option
+              v-for="template in coherentTemplates"
+              :key="template.id"
+              :label="template.name"
+              :value="template.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-divider />
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-xl font-semibold">連貫性問卷設定</h2>
           <el-button @click="addQuestion" type="primary">新增問題</el-button>
@@ -182,6 +230,7 @@ const handleGenerate = async () => {
             v-for="q in questions"
             :key="q.id"
             :question="q"
+            :available-generators="combinedGeneratorOptions"
             @remove="removeQuestion(q.id)"
             @update:question="updateQuestion"
           />

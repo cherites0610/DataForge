@@ -9,4 +9,5 @@ class QuestionDto {
 export class CoherentSurveyDto {
   rows: number;
   questions: QuestionDto[];
+  templateId?: string;
 }

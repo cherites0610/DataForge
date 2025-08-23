@@ -1,0 +1,20 @@
+import axios from 'axios'
+
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+})
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const apiKey = localStorage.getItem('apiKey')
+    if (apiKey) {
+      config.headers['x-api-key'] = apiKey
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  },
+)
+
+export default apiClient // 預設導出 apiClient

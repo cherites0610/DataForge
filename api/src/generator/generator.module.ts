@@ -10,9 +10,10 @@ import { ScaleGenerator } from './strategies/scale.generator';
 import { SingleChoiceGenerator } from './strategies/single-choice.generator';
 import { ChinaIdCardGenerator } from './strategies/china-id-card.generator';
 import { ChinaMobilePhoneGenerator } from './strategies/china-mobile-phone.generator';
+import { PromptTemplatesModule } from 'src/prompt-templates/prompt-templates.module';
 
 @Module({
-  imports: [LlmModule],
+  imports: [LlmModule, PromptTemplatesModule],
   controllers: [GeneratorController],
   providers: [
     GeneratorService,

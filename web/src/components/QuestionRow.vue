@@ -1,19 +1,11 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { generatorOptions } from '@/config/generators'
-
-// 統一的資料結構
-interface Question {
-  id: number
-  name: string
-  question?: string
-  generatorType: string
-  answerType: string
-  options: Record<string, any>
-}
+import { generatorOptions, type GeneratorOption } from '@/config/generators'
+import type { Question } from '@/types'
 
 const props = defineProps<{
   question: Question
+  availableGenerators: Array<{ label: string; options: Array<{ value: string; label: string }> }>
 }>()
 
 const emit = defineEmits(['remove', 'update:question'])
@@ -26,6 +18,20 @@ const localQuestion = computed({
 
 // LLM 模式下的回答格式選項
 const answerTypes = ['簡答', '數字', '單選', '是非']
+
+const currentOptionsConfig = computed<GeneratorOption[]>(() => {
+  const genType = localQuestion.value.generatorType
+  if (genType === 'llm-answer') {
+    // ... (llm-answer 模式的邏輯不變)
+  }
+
+  // 檢查是否為規則生成器
+  if (Object.prototype.hasOwnProperty.call(generatorOptions, genType)) {
+    return generatorOptions[genType]?.options || []
+  }
+  // 自訂範本沒有選項
+  return []
+})
 
 // 監聽「生成方式」的變化，這是最高優先級的狀態切換
 watch(
@@ -73,14 +79,25 @@ watch(
       <el-col :span="6">
         <el-input v-model="localQuestion.name" placeholder="欄位名 (Key)" />
       </el-col>
-      <el-col :span="16">
+      <el-col :span="6">
         <el-select v-model="localQuestion.generatorType" placeholder="生成方式" class="w-full">
-          <el-option
-            v-for="(config, key) in generatorOptions"
-            :key="key"
-            :label="config.label"
-            :value="key"
-          />
+          <el-option-group
+            v-for="group in availableGenerators"
+            :key="group.label"
+            :label="group.label"
+          >
+            <el-option
+              v-for="item in group.options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-option-group>
+        </el-select>
+      </el-col>
+      <el-col :span="10" v-if="localQuestion.generatorType === 'llm-answer'">
+        <el-select v-model="localQuestion.answerType" placeholder="回答格式" class="w-full">
+          <el-option v-for="t in answerTypes" :key="t" :label="t" :value="t" />
         </el-select>
       </el-col>
       <el-col :span="2" class="text-right">
@@ -88,43 +105,15 @@ watch(
       </el-col>
     </el-row>
 
-    <div v-if="localQuestion.generatorType === 'llm-answer'" class="space-y-4">
-      <el-row :gutter="20" align="middle">
-        <el-col :span="12">
-          <el-select v-model="localQuestion.answerType" placeholder="回答格式" class="w-full">
-            <el-option v-for="t in answerTypes" :key="t" :label="t" :value="t" />
-          </el-select>
-        </el-col>
-      </el-row>
-      <el-row>
-        <el-col :span="24">
-          <el-input v-model="localQuestion.question" placeholder="問題描述 (給LLM看)" />
-        </el-col>
-      </el-row>
-      <el-row v-if="localQuestion.answerType === '單選'">
-        <el-col :span="24">
-          <el-form-item :label="generatorOptions['single-choice'].options[0].label">
-            <el-input
-              v-model="localQuestion.options.choices"
-              type="textarea"
-              :rows="2"
-              :placeholder="generatorOptions['single-choice'].options[0].placeholder"
-            />
-          </el-form-item>
-        </el-col>
-      </el-row>
-    </div>
+    <el-row v-if="localQuestion.generatorType === 'llm-answer'" class="mt-4">
+      <el-col :span="24">
+        <el-input v-model="localQuestion.question" placeholder="問題描述 (給LLM看)" />
+      </el-col>
+    </el-row>
 
-    <div
-      v-else-if="generatorOptions[localQuestion.generatorType]?.options.length > 0"
-      class="pt-4 border-t"
-    >
+    <div v-if="currentOptionsConfig.length > 0" class="pt-4 border-t">
       <el-row :gutter="20">
-        <el-col
-          :span="8"
-          v-for="option in generatorOptions[localQuestion.generatorType].options"
-          :key="option.key"
-        >
+        <el-col :span="8" v-for="option in currentOptionsConfig" :key="option.key">
           <el-form-item :label="option.label">
             <el-input
               v-if="['text', 'number'].includes(option.type)"

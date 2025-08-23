@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   Post,
+  Req,
   Res,
   UseGuards,
   UseInterceptors,
@@ -21,8 +22,13 @@ export class GeneratorController {
   constructor(private readonly generatorService: GeneratorService) {}
 
   @Post('generate-excel')
-  async generateData(@Body() payload: GenerateDataDto, @Res() res: Response) {
-    const buffer = await this.generatorService.generateDataSet(payload);
+  async generateData(
+    @Body() payload: GenerateDataDto,
+    @Res() res: Response,
+    @Req() req, // 獲取請求物件
+  ) {
+    const userId = req.user.apiKey;
+    const buffer = await this.generatorService.generateDataSet(payload, userId);
 
     const filename = `generated-data-${Date.now()}.xlsx`;
 
@@ -39,9 +45,13 @@ export class GeneratorController {
   async generateCoherentSurvey(
     @Body() payload: CoherentSurveyDto,
     @Res() res: Response,
+    @Req() req, // 獲取請求物件
   ) {
-    const buffer =
-      await this.generatorService.generateCoherentSurveySet(payload);
+    const userId = req.user.apiKey;
+    const buffer = await this.generatorService.generateCoherentSurveySet(
+      payload,
+      userId,
+    );
 
     const filename = `coherent-survey-${Date.now()}.xlsx`;
 
