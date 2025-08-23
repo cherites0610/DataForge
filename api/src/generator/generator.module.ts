@@ -11,9 +11,10 @@ import { SingleChoiceGenerator } from './strategies/single-choice.generator';
 import { ChinaIdCardGenerator } from './strategies/china-id-card.generator';
 import { ChinaMobilePhoneGenerator } from './strategies/china-mobile-phone.generator';
 import { PromptTemplatesModule } from 'src/prompt-templates/prompt-templates.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [LlmModule, PromptTemplatesModule],
+  imports: [LlmModule, PromptTemplatesModule, UsersModule],
   controllers: [GeneratorController],
   providers: [
     GeneratorService,

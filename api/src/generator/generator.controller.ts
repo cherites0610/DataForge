@@ -12,14 +12,17 @@ import { GeneratorService } from './generator.service';
 import { GenerateDataDto } from './dto/generate-data.dto';
 import type { Response } from 'express';
 import { CoherentSurveyDto } from './dto/coherent-survey.dto';
-import { AuthGuard } from 'src/auth/auth.guard';
-import { UsageInterceptor } from 'src/usage/usage.interceptor';
+import { EmailVerifiedGuard } from 'src/auth/guards/email-verified.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Controller('generator')
-@UseGuards(AuthGuard) // 在整個 Controller 層級啟用認證守衛
-@UseInterceptors(UsageInterceptor) // 在整個 Controller 層級啟用用量攔截器
+@UseGuards(JwtAuthGuard, EmailVerifiedGuard)
 export class GeneratorController {
-  constructor(private readonly generatorService: GeneratorService) {}
+  constructor(
+    private readonly generatorService: GeneratorService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   @Post('generate-excel')
   async generateData(
@@ -27,7 +30,7 @@ export class GeneratorController {
     @Res() res: Response,
     @Req() req, // 獲取請求物件
   ) {
-    const userId = req.user.apiKey;
+    const userId = req.user.id;
     const buffer = await this.generatorService.generateDataSet(payload, userId);
 
     const filename = `generated-data-${Date.now()}.xlsx`;
@@ -47,11 +50,21 @@ export class GeneratorController {
     @Res() res: Response,
     @Req() req, // 獲取請求物件
   ) {
-    const userId = req.user.apiKey;
+    const userId = req.user.id;
     const buffer = await this.generatorService.generateCoherentSurveySet(
       payload,
       userId,
     );
+
+    this.eventEmitter.emit('data.generated', {
+      userId: userId,
+      details: {
+        mode: 'coherent',
+        rows: payload.rows,
+        questionCount: payload.questions.length,
+        // 可以在這裡累加所有 LLM 呼叫的 token 數
+      },
+    });
 
     const filename = `coherent-survey-${Date.now()}.xlsx`;
 

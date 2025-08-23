@@ -17,6 +17,8 @@ import { CoherentSurveyDto } from './dto/coherent-survey.dto';
 import { ChinaIdCardGenerator } from './strategies/china-id-card.generator';
 import { ChinaMobilePhoneGenerator } from './strategies/china-mobile-phone.generator';
 import { PromptTemplatesService } from 'src/prompt-templates/prompt-templates.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LlmUsage } from 'src/llm/strategies/llm.strategy.interface';
 
 @Injectable()
 export class GeneratorService {
@@ -24,6 +26,7 @@ export class GeneratorService {
   private requestCache = new Map<string, any[]>();
 
   constructor(
+    private readonly eventEmitter: EventEmitter2,
     private readonly llmService: LlmService,
     private readonly promptTemplatesService: PromptTemplatesService,
     private readonly serialNumberGenerator: SerialNumberGenerator,
@@ -83,6 +86,12 @@ export class GeneratorService {
       independentLlmTasks.get(q.type)!.push(q);
     }
 
+    let totalTokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+
     // 3.2 為聚合後的任務建立批次生成 Promise
     const independentLlmGenPromises = Array.from(
       independentLlmTasks.entries(),
@@ -94,10 +103,16 @@ export class GeneratorService {
       });
 
       // 3.4 使用渲染後的 Prompt 呼叫 LLM
-      const results = (await this.llmService.generateWithPrompt(hydratedPrompt))
+      const llmResponse =
+        await this.llmService.generateWithPrompt(hydratedPrompt);
+      const results = llmResponse.response
         .split('\n')
         .map((item) => item.trim())
         .filter(Boolean);
+
+      totalTokenUsage.promptTokens += llmResponse.usage.promptTokens;
+      totalTokenUsage.completionTokens += llmResponse.usage.completionTokens;
+      totalTokenUsage.totalTokens += llmResponse.usage.totalTokens;
 
       if (results.length < totalNeeded) {
         console.warn(
@@ -117,6 +132,16 @@ export class GeneratorService {
     // 4. 並行執行所有預生成任務
     await Promise.all([...ruleGenPromises, ...independentLlmGenPromises]);
 
+    this.eventEmitter.emit('data.generated', {
+      userId,
+      details: {
+        mode: 'field',
+        rows: payload.rows,
+        fieldCount: payload.fields.length,
+        tokenUsage: totalTokenUsage,
+      },
+    });
+
     // 5. 從快取中組裝最終的數據欄
     const generatedColumns: { [key: string]: any[] } = {};
     for (const field of fields) {
@@ -135,6 +160,12 @@ export class GeneratorService {
   ): Promise<Buffer> {
     this.requestCache.clear();
     const { rows, questions, templateId } = payload;
+
+    const totalTokenUsage: LlmUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
 
     const coherentLlmQuestions: any[] = [];
     const independentLlmQuestions: any[] = [];
@@ -172,10 +203,19 @@ export class GeneratorService {
       const hydratedPrompt = await this._resolveAndHydratePrompt(type, userId, {
         count: totalNeeded,
       });
-      const results = (await this.llmService.generateWithPrompt(hydratedPrompt))
+
+      // 1. 獲取包含 usage 的完整回應
+      const llmResponse =
+        await this.llmService.generateWithPrompt(hydratedPrompt);
+      const results = llmResponse.response
         .split('\n')
         .map((item) => item.trim())
         .filter(Boolean);
+
+      // 2. 累加 token
+      totalTokenUsage.promptTokens += llmResponse.usage.promptTokens;
+      totalTokenUsage.completionTokens += llmResponse.usage.completionTokens;
+      totalTokenUsage.totalTokens += llmResponse.usage.totalTokens;
 
       if (results.length < totalNeeded) {
         console.warn(
@@ -203,7 +243,26 @@ export class GeneratorService {
       ),
     );
 
-    const surveyResponses = await Promise.all(surveyPromises);
+    const resultsWithUsage = await Promise.all(surveyPromises);
+
+    // 3. 從每列的結果中，分離出數據和 token usage
+    const surveyResponses = resultsWithUsage.map((r) => r.rowData);
+    resultsWithUsage.forEach((r) => {
+      totalTokenUsage.promptTokens += r.usage.promptTokens;
+      totalTokenUsage.completionTokens += r.usage.completionTokens;
+      totalTokenUsage.totalTokens += r.usage.totalTokens;
+    });
+
+    this.eventEmitter.emit('data.generated', {
+      userId,
+      details: {
+        mode: 'coherent',
+        rows: payload.rows,
+        questionCount: payload.questions.length,
+        templateId: payload.templateId,
+        tokenUsage: totalTokenUsage,
+      },
+    });
 
     return this._convertToExcelBuffer(surveyResponses);
   }
@@ -214,8 +273,14 @@ export class GeneratorService {
     coherentLlmQuestions: any[],
     templateId: string | null,
     userId: string,
-  ): Promise<object> {
+  ): Promise<{ rowData: object; usage: LlmUsage }> {
     const currentRow: { [key: string]: any } = {};
+
+    let llmUsage: LlmUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
 
     // 步驟 A: 從快取中讀取所有「非連貫性」的數據
     for (const q of allQuestions) {
@@ -254,19 +319,18 @@ export class GeneratorService {
         );
       }
 
-      const llmResponseString =
-        await this.llmService.generateWithPrompt(finalPrompt);
+      const llmResponse = await this.llmService.generateWithPrompt(finalPrompt);
+      llmUsage = llmResponse.usage; // 2. 獲取當前列的 token 消耗
 
       try {
-        const jsonMatch = llmResponseString.match(/{[\s\S]*}/);
-        if (!jsonMatch)
-          throw new Error('No JSON object found in LLM response.');
+        const jsonMatch = llmResponse.response.match(/{[\s\S]*}/);
+        if (!jsonMatch) throw new Error('No JSON object found');
         const llmAnswers = JSON.parse(jsonMatch[0]);
         Object.assign(currentRow, llmAnswers);
       } catch (error) {
         console.error(
           'Failed to parse coherent LLM response in hybrid mode:',
-          llmResponseString,
+          llmResponse.response,
         );
         coherentLlmQuestions.forEach((q) => {
           currentRow[q.name] = 'LLM PARSE ERROR';
@@ -274,7 +338,7 @@ export class GeneratorService {
       }
     }
 
-    return currentRow;
+    return { rowData: currentRow, usage: llmUsage };
   }
 
   private async _resolveAndHydratePrompt(

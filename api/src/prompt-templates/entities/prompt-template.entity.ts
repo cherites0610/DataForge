@@ -1,9 +1,12 @@
+import { User } from 'src/users/entities/user.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
 
 export enum PromptType {
@@ -19,11 +22,12 @@ export class PromptTemplate {
   @Column()
   name: string; // 範本名稱，如 "奇幻風格姓名"
 
-  @Column({ type: 'varchar', nullable: true }) // 設為 varchar 以儲存 API Key，並允許為空
+  @Column({ type: 'uuid', nullable: true }) // 2. 確保類型為 'uuid'
   userId: string | null;
-  // 未來可以加上與 User Entity 的關聯
-  // @ManyToOne(() => User)
-  // user: User;
+
+  @ManyToOne(() => User, (user) => user.promptTemplates) // 3. 建立多對一關聯
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column({ type: 'text' })
   template: string; // Prompt 範本內容

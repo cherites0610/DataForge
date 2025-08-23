@@ -1,0 +1,26 @@
+meta {
+  name: 登錄
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{local_url}}/auth/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  : 
+}
+
+body:json {
+  {
+    "email":"cherites0610@gmail.com",
+    "password":"Che13416905142"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

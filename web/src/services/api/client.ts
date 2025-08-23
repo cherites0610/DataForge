@@ -6,12 +6,13 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const apiKey = localStorage.getItem('apiKey')
-    if (apiKey) {
-      config.headers['x-api-key'] = apiKey
+    const token = localStorage.getItem('authToken')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
+
   (error) => {
     return Promise.reject(error)
   },

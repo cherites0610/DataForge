@@ -4,7 +4,7 @@
       <p>版權所有 © 2025 廖柏安</p>
 
       <p class="mt-1">為您的數據生成需求提供動力</p>
-      <p class="mt-2 text-xs text-gray-400">版本號: beta 1.2.0</p>
+      <p class="mt-2 text-xs text-gray-400">版本號: beta 1.3.0</p>
     </div>
   </footer>
 </template>

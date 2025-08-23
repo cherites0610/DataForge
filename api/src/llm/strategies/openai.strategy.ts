@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { ILlmStrategy } from './llm.strategy.interface';
+import { ILlmStrategy, LlmResponse } from './llm.strategy.interface';
 
 @Injectable()
 export class OpenaiStrategy implements ILlmStrategy {
@@ -13,7 +13,7 @@ export class OpenaiStrategy implements ILlmStrategy {
     });
   }
 
-  async generate(prompt: string): Promise<string> {
+  async generate(prompt: string): Promise<LlmResponse> {
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
@@ -21,7 +21,15 @@ export class OpenaiStrategy implements ILlmStrategy {
         temperature: 1.0,
         max_tokens: 50,
       });
-      return completion.choices[0].message.content!.trim();
+      const usage = completion.usage!;
+      return {
+        response: completion.choices[0].message.content!.trim(),
+        usage: {
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens,
+          totalTokens: usage.total_tokens,
+        },
+      };
     } catch (error) {
       console.error('OpenAI API Error:', error);
       throw new Error('Failed to generate data from OpenAI');

@@ -23,6 +23,6 @@ export class LlmCustomPromptGenerator implements IGeneratorStrategy {
       this.llmService.generateWithPrompt(prompt),
     );
 
-    return Promise.all(llmPromises);
+    return (await Promise.all(llmPromises)).map((res) => res.response);
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Setting, Key, Collection, DocumentChecked } from '@element-plus/icons-vue'
+import { User, Menu, Collection, Download } from '@element-plus/icons-vue'
 
 const dialogVisible = ref(false)
 
@@ -18,49 +18,69 @@ defineExpose({
     <el-scrollbar max-height="60vh">
       <div class="px-6 py-2">
         <el-steps direction="vertical">
-          <el-step status="process" :icon="Key">
+          <el-step status="process" :icon="User">
             <template #title>
-              <h3 class="text-lg font-semibold">第一步：設定您的 API Key</h3>
+              <h3 class="text-lg font-semibold">第一步：註冊與登入</h3>
             </template>
             <template #description>
               <p class="text-gray-600">
-                您應該已經從管理員那裡收到一組專屬的 Beta 測試 API Key。請點擊頁面右上角的
-                <code><el-button size="small" :icon="Setting" text>設定 API Key</el-button></code>
-                按鈕，將您的 Key
-                貼入並儲存。此金鑰只會儲存在您的瀏覽器中，確保您的請求能被伺服器識別。
+                歡迎使用！首先，您需要一個個人帳號。請點擊頁面右上角的
+                <code><el-button type="primary" size="small">註冊</el-button></code>
+                按鈕來建立您的帳號。註冊成功後，系統會發送一封驗證信至您的信箱，請務必前往點擊連結以啟用帳號。完成驗證後，您就可以登入平台了。
               </p>
             </template>
           </el-step>
 
-          <el-step status="process" :icon="Collection">
+          <el-step status="process" :icon="Menu">
             <template #title>
-              <h3 class="text-lg font-semibold">第二步：選擇生成模式</h3>
+              <h3 class="text-lg font-semibold">第二步：探索與管理</h3>
             </template>
             <template #description>
-              <p class="text-gray-600 mb-2">
-                本工具提供兩種強大的數據生成模式，請在主介面的頁籤中選擇：
-              </p>
+              <p class="text-gray-600 mb-2">登入後，您可以探索平台的核心管理功能：</p>
               <ul class="list-disc pl-5 space-y-2">
                 <li>
-                  <strong>欄位模式</strong
-                  >：適用於生成多個各自獨立的數據欄位。您可以為每一欄選擇不同的生成規則（如序列號、手機號、量表分數等），它們會被獨立生成。
+                  <strong>Prompt 庫</strong>：點擊頁首的
+                  <code><el-button size="small">Prompt 庫</el-button></code>
+                  進入管理介面。在這裡，您可以建立、編輯和刪除專屬於您的 Prompt
+                  範本，這是讓生成數據更具個人化風格的關鍵！
                 </li>
                 <li>
-                  <strong>問卷模式 (LLM)</strong
-                  >：適用於模擬真實、邏輯連貫的問卷回覆。您需要定義一份完整的問卷結構，LLM
-                  將扮演受訪者，一次性生成所有問題的答案，並確保答案之間符合邏輯（例如，性別為男的受訪者，懷孕狀態會是「否」）。
+                  <strong>個人資料</strong>：點擊您的
+                  Email，在下拉選單中選擇「個人資料」，您可以查看帳號的 Token 使用紀錄與額度詳情。
                 </li>
               </ul>
             </template>
           </el-step>
 
-          <el-step status="process" :icon="DocumentChecked">
+          <el-step status="process" :icon="Collection">
             <template #title>
-              <h3 class="text-lg font-semibold">第三步：設定並生成 Excel</h3>
+              <h3 class="text-lg font-semibold">第三步：開始生成數據</h3>
+            </template>
+            <template #description>
+              <p class="text-gray-600 mb-2">在主頁，您可以選擇兩種強大的生成模式：</p>
+              <ul class="list-disc pl-5 space-y-2">
+                <li>
+                  <strong>欄位模式</strong
+                  >：適用於快速生成獨立的數據欄位。您可以在「生成類型」下拉選單中，選擇系統內建的規則，或是您在
+                  Prompt 庫中建立的「獨立型」範本。
+                </li>
+                <li>
+                  <strong>問卷模式 (LLM)</strong
+                  >：適用於模擬邏輯連貫的真人回覆。此模式支援**混合生成**，您可以將部分欄位（如ID、手機號）設為「規則生成」以節省成本，將需要創意和邏輯的欄位設為「交由
+                  LLM 回答」。更棒的是，您可以透過「問卷生成風格」下拉選單，套用您在 Prompt
+                  庫中建立的「連貫型」範本，來指導 AI 的整體回答風格和語氣！
+                </li>
+              </ul>
+            </template>
+          </el-step>
+
+          <el-step status="process" :icon="Download">
+            <template #title>
+              <h3 class="text-lg font-semibold">第四步：下載您的成果</h3>
             </template>
             <template #description>
               <p class="text-gray-600">
-                在您選擇的模式下設定好所有欄位或問題後，在頁面底部設定您希望生成的
+                在您設定好所有欄位或問題後，於頁面底部設定希望生成的
                 <code>生成筆數</code>，然後點擊
                 <code><el-button type="success" size="small">生成 Excel</el-button></code>
                 按鈕。稍待片刻，您的瀏覽器將會自動下載生成的 Excel 檔案。

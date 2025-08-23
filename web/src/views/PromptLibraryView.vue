@@ -8,6 +8,9 @@ import {
   updatePromptTemplate,
 } from '@/services/api'
 import type { PromptTemplate, PromptTemplatePayload } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 // --- 狀態管理 ---
 const templates = ref<PromptTemplate[]>([])
@@ -121,15 +124,15 @@ const handleSubmit = async () => {
       <el-table-column prop="template" label="範本內容" show-overflow-tooltip />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button @click="handleEdit(row)" type="primary" link size="small">編輯</el-button>
-          <el-button
-            v-if="!row.isDefault"
-            @click="handleDelete(row)"
-            type="danger"
-            link
-            size="small"
-            >刪除</el-button
+          <div
+            v-if="
+              (authStore.user && row.userId === authStore.user.id) ||
+              authStore.user.role === 'admin'
+            "
           >
+            <el-button @click="handleEdit(row)" type="primary" link size="small">編輯</el-button>
+            <el-button @click="handleDelete(row)" type="danger" link size="small">刪除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

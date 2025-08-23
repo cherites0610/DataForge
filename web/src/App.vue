@@ -8,7 +8,7 @@ import TheFooter from './components/TheFooter.vue'
   <div class="min-h-screen bg-gray-50 flex flex-col items-center">
     <TheHeader />
 
-    <main class="w-full max-w-5xl mx-auto px-4 flex-grow">
+    <main class="w-full mt-10 max-w-5xl mx-auto px-4 flex-grow">
       <RouterView />
     </main>
 

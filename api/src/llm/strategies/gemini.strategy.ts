@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { ILlmStrategy } from './llm.strategy.interface';
+import { ILlmStrategy, LlmResponse } from './llm.strategy.interface';
 
 @Injectable()
 export class GeminiStrategy implements ILlmStrategy {
@@ -13,7 +13,7 @@ export class GeminiStrategy implements ILlmStrategy {
     );
   }
 
-  async generate(prompt: string): Promise<string> {
+  async generate(prompt: string): Promise<LlmResponse> {
     try {
       const model = this.genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
@@ -22,9 +22,19 @@ export class GeminiStrategy implements ILlmStrategy {
         },
       });
       const result = await model.generateContent(prompt);
-      const response = result.response;
+      console.log(result);
 
-      return response.text();
+      const response = result.response;
+      const text = response.text();
+
+      return {
+        response: text,
+        usage: {
+          promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
+          completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+          totalTokens: response.usageMetadata?.totalTokenCount ?? 0,
+        },
+      };
     } catch (error) {
       console.error('Gemini API Error:', error);
       throw new Error('Failed to generate data from Gemini');

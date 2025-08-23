@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { OpenaiStrategy } from './strategies/openai.strategy';
-import { ILlmStrategy } from './strategies/llm.strategy.interface';
+import { ILlmStrategy, LlmResponse } from './strategies/llm.strategy.interface';
 import CircuitBreaker from 'opossum';
 import { ConfigService } from '@nestjs/config';
 import { GeminiStrategy } from './strategies/gemini.strategy';
@@ -73,7 +73,7 @@ export class LlmService implements OnModuleInit {
     });
   }
 
-  async generateWithPrompt(prompt: string): Promise<string> {
+  async generateWithPrompt(prompt: string): Promise<LlmResponse> {
     // 步驟 1: 檢查每日上限 (RPD) - 保持立即失敗
     try {
       await this.rpdLimiter.consume('llm_api');
@@ -111,9 +111,9 @@ export class LlmService implements OnModuleInit {
 
       try {
         console.log(`Attempting to generate data with: ${provider}`);
-        const result = await breaker.fire(prompt);
+        const result = await breaker.fire(prompt); // breaker.fire 會回傳 LlmResponse
         console.log(`Successfully generated data with: ${provider}`);
-        return result as string;
+        return result as LlmResponse;
       } catch (error) {
         console.error(
           `Provider ${provider} failed or circuit is open. Error: ${error.message}`,
@@ -129,7 +129,7 @@ export class LlmService implements OnModuleInit {
     const rawResponse = await this.generateWithPrompt(prompt);
 
     // 將 LLM 回傳的、用換行符分隔的字串，整理成陣列
-    return rawResponse
+    return rawResponse.response
       .split('\n')
       .map((item) => item.trim())
       .filter(Boolean);
@@ -137,7 +137,7 @@ export class LlmService implements OnModuleInit {
 
   async generateForType(type: string): Promise<string> {
     const prompt = this._getPromptForType(type);
-    return this.generateWithPrompt(prompt);
+    return (await this.generateWithPrompt(prompt)).response;
   }
 
   private _getPromptForType(type: string, count: number = 1): string {

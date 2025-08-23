@@ -4,10 +4,18 @@ meta {
   seq: 4
 }
 
-get {
-  url: 
-  body: none
+post {
+  url: {{local_url}}/prompt-templates
+  body: json
   auth: inherit
+}
+
+body:json {
+  {
+    "name": "律師事務所名稱",
+    "template": "請生成 {{count}} 個看起來很專業的中文律師事務所名稱，例如「理律法律事務所」。請確保每一個結果都是獨一無二的，並且每一個結果佔一行，用換行符分隔。",
+    "type": "independent"
+  }
 }
 
 settings {

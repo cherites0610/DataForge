@@ -9,6 +9,7 @@ import { PromptTemplate } from './entities/prompt-template.entity';
 import { CreatePromptTemplateDto } from './dto/create-prompt-template.dto';
 import { UpdatePromptTemplateDto } from './dto/update-prompt-template.dto';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class PromptTemplatesService {
@@ -16,9 +17,10 @@ export class PromptTemplatesService {
     @InjectRepository(PromptTemplate)
     private templatesRepository: Repository<PromptTemplate>,
     private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  create(
+  async create(
     createDto: CreatePromptTemplateDto,
     userId: string,
   ): Promise<PromptTemplate> {
@@ -37,7 +39,13 @@ export class PromptTemplatesService {
       ...restOfDto,
       userId: finalUserId,
     });
-    return this.templatesRepository.save(template);
+
+    const newTemplate = await this.templatesRepository.save(template);
+    this.eventEmitter.emit('template.created', {
+      userId,
+      details: { templateId: newTemplate.id, name: newTemplate.name },
+    });
+    return newTemplate;
   }
 
   // FindAll: 只尋找屬於該使用者的，以及系統公用的 (userId is NULL)
@@ -65,11 +73,17 @@ export class PromptTemplatesService {
     updateDto: UpdatePromptTemplateDto,
     userId: string,
   ): Promise<PromptTemplate> {
+    console.log(userId);
+
     const template = await this.findOne(id, userId); // 複用 findOne 的權限檢查
     if (template.isDefault)
       throw new ForbiddenException('不可修改系統預設範本');
 
     await this.templatesRepository.update(id, updateDto);
+    this.eventEmitter.emit('template.updated', {
+      userId,
+      details: { templateId: id, changes: updateDto },
+    });
     return this.findOne(id, userId);
   }
 
@@ -79,6 +93,10 @@ export class PromptTemplatesService {
       throw new ForbiddenException('不可刪除系統預設範本');
 
     const result = await this.templatesRepository.delete(id);
+    this.eventEmitter.emit('template.deleted', {
+      userId,
+      details: { templateId: id },
+    });
     if (result.affected === 0) {
       throw new NotFoundException('找不到指定的範本');
     }

@@ -52,3 +52,31 @@ export interface SurveyPayload {
     options: Record<string, any>
   }[]
 }
+
+export interface CreateUserDto {
+  email: string
+  password: string
+}
+export type LoginCredentials = CreateUserDto
+
+// 後端 /auth/login 成功後回傳的資料格式
+export interface AuthResponse {
+  access_token: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  role: 'user' | 'beta_tester' | 'admin' | 'guest'
+  monthlyTokenLimit: number
+  monthlyTokensUsed: number
+  usageCycleStart: Date
+}
+
+export interface UsageLog {
+  id: string
+  userId: string
+  action: string
+  details: Record<string, any>
+  createdAt: string
+}
