@@ -43,8 +43,12 @@ export const generatorOptions: Record<string, GeneratorMetadata> = {
     label: '台灣手機號',
     options: [],
   },
-  'chinese-mobile-phone': {
-    label: '大陸手機號',
+  'china-id-card': {
+    label: '中國身分證',
+    options: [],
+  },
+  'china-mobile-phone': {
+    label: '中國手機號',
     options: [],
   },
   scale: {
@@ -83,6 +87,11 @@ export const generatorOptions: Record<string, GeneratorMetadata> = {
   },
   'company-name-tw': {
     label: '公司名稱 (LLM)',
+    options: [],
+  },
+  'llm-answer': {
+    // <-- 新增此項
+    label: '交由 LLM 回答',
     options: [],
   },
 }

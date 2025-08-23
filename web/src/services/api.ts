@@ -46,9 +46,9 @@ interface SurveyPayload {
   rows: number
   questions: {
     name: string
-    question: string
-    type: string
-    options?: string[]
+    question?: string // question 是可選的
+    generatorType: string
+    options: Record<string, any> // 正確的類型是物件
   }[]
 }
 export const generateCoherentSurveyApi = async (payload: SurveyPayload) => {

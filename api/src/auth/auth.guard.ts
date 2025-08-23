@@ -27,7 +27,6 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     // 我們約定 API Key 放在 'x-api-key' 這個 header 中
     const apiKey = request.headers['x-api-key'];
-    console.log(apiKey);
 
     if (!apiKey || !this.validKeys.includes(apiKey)) {
       throw new UnauthorizedException('無效或遺失 API Key');

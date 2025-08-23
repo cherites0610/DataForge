@@ -10,7 +10,11 @@ import { ILlmStrategy } from './strategies/llm.strategy.interface';
 import CircuitBreaker from 'opossum';
 import { ConfigService } from '@nestjs/config';
 import { GeminiStrategy } from './strategies/gemini.strategy';
-import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible';
+import {
+  RateLimiterMemory,
+  RateLimiterRedis,
+  RateLimiterRes,
+} from 'rate-limiter-flexible';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -70,31 +74,45 @@ export class LlmService implements OnModuleInit {
   }
 
   async generateWithPrompt(prompt: string): Promise<string> {
-    // 4. 在所有操作之前，先通過節流檢查
+    // 步驟 1: 檢查每日上限 (RPD) - 保持立即失敗
     try {
-      // consume 會回傳 Promise，所以我們可以用 Promise.all 並行檢查
-      await Promise.all([
-        this.rpmLimiter.consume('llm_api'),
-        this.rpdLimiter.consume('llm_api'),
-      ]);
+      await this.rpdLimiter.consume('llm_api');
     } catch (error) {
-      // 如果任一節流器超限，則會拋出錯誤
-      console.warn(`LLM Rate Limit Exceeded. Error: ${error.message}`);
+      console.warn(`LLM Daily Rate Limit Exceeded. Error: ${error.message}`);
       throw new HttpException(
-        '已達到請求速率上限，請稍後再試。',
-        HttpStatus.TOO_MANY_REQUESTS, // 429 狀態碼
+        '已達到今日請求總量上限，請明天再試。',
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    // --- 原有的熔斷與備援邏輯 ---
+    // 步驟 2: 檢查每分鐘上限 (RPM) - 改造為「等待」模式
+    try {
+      await this.rpmLimiter.consume('llm_api');
+    } catch (rejRes) {
+      // 檢查錯誤物件是否是節流器回傳的特定物件
+      if (rejRes instanceof RateLimiterRes) {
+        console.log(
+          `RPM limit reached. Waiting for ${rejRes.msBeforeNext}ms before continuing...`,
+        );
+        // 等待指定的時間
+        await new Promise((resolve) =>
+          setTimeout(resolve, rejRes.msBeforeNext),
+        );
+      } else {
+        // 如果是其他未知錯誤，則向上拋出
+        throw rejRes;
+      }
+    }
+
+    // --- 原有的熔斷與備援邏輯 (完全不變) ---
     for (const provider of this.providerOrder) {
       const breaker = this.breakers.get(provider);
       if (!breaker) continue;
 
       try {
-        this.logger.log(`呼叫${provider}`);
+        console.log(`Attempting to generate data with: ${provider}`);
         const result = await breaker.fire(prompt);
-        this.logger.log(`呼叫成功${provider}`);
+        console.log(`Successfully generated data with: ${provider}`);
         return result as string;
       } catch (error) {
         console.error(

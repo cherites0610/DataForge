@@ -19,7 +19,8 @@ const openUsageGuide = () => {
 <template>
   <header class="w-full max-w-5xl mx-auto px-4 py-4">
     <div class="flex justify-between items-center">
-      <div>
+      <div class="flex items-center">
+        <img src="/logo.png" alt="數造工坊 DataForge Logo" class="h-10 mr-3" />
         <h1 class="text-2xl font-bold text-gray-800">數造工坊 DataForge</h1>
       </div>
       <div class="flex items-center space-x-4">

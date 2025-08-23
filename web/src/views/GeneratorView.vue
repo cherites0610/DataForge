@@ -16,9 +16,10 @@ interface Field {
 interface Question {
   id: number
   name: string
-  question: string
-  type: string
-  options: string // UI層用字串
+  question?: string
+  generatorType: string
+  answerType: string
+  options: Record<string, any>
 }
 
 const questions = ref<Question[]>([])
@@ -59,12 +60,14 @@ const updateField = (newField: Field) => {
 const addQuestion = () => {
   questions.value.push({
     id: Date.now(),
-    name: `q_${questions.value.length + 1}`,
+    name: `欄位_${questions.value.length + 1}`,
     question: '',
-    type: '單選',
-    options: '',
+    generatorType: 'llm-answer', // 預設為 LLM
+    answerType: '簡答', // 預設回答格式
+    options: {},
   })
 }
+
 const removeQuestion = (id: number) => {
   questions.value = questions.value.filter((q) => q.id !== id)
 }
@@ -115,9 +118,11 @@ const handleGenerate = async () => {
       const cleanQuestions = questions.value.map((q) => ({
         name: q.name,
         question: q.question,
-        type: q.type,
-        options: q.type === '單選' ? q.options.split(',').map((s) => s.trim()) : undefined,
+        generatorType: q.generatorType,
+        answerType: q.answerType,
+        options: q.options,
       }))
+
       blob = await generateCoherentSurveyApi({ rows: totalRows.value, questions: cleanQuestions })
     }
 

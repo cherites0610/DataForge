@@ -8,6 +8,7 @@ import {
 export class SerialNumberGenerator implements IGeneratorStrategy {
   async generate(rows: number, options: GeneratorOptions): Promise<string[]> {
     const { prefix = 'SN', start = 1, step = 1 } = options;
+
     const results: string[] = [];
     let currentValue = Number(start);
 
@@ -15,6 +16,7 @@ export class SerialNumberGenerator implements IGeneratorStrategy {
       results.push(`${prefix}${currentValue}`);
       currentValue += Number(step);
     }
+
     return results;
   }
 }

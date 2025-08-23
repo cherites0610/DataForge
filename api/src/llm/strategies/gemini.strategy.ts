@@ -16,7 +16,7 @@ export class GeminiStrategy implements ILlmStrategy {
   async generate(prompt: string): Promise<string> {
     try {
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash-8b',
+        model: 'gemini-1.5-flash',
         generationConfig: {
           temperature: 1.0,
         },

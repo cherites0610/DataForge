@@ -10,11 +10,13 @@ import { TaiwanMobilePhoneGenerator } from './strategies/taiwan-mobile-phone.gen
 import { ScaleGenerator } from './strategies/scale.generator';
 import { SingleChoiceGenerator } from './strategies/single-choice.generator';
 import { CoherentSurveyDto } from './dto/coherent-survey.dto';
+import { ChinaIdCardGenerator } from './strategies/china-id-card.generator';
+import { ChinaMobilePhoneGenerator } from './strategies/china-mobile-phone.generator';
 
 @Injectable()
 export class GeneratorService {
   private strategies: Map<string, IGeneratorStrategy> = new Map();
-  private llmCache = new Map<string, string[]>();
+  private requestCache = new Map<string, any[]>();
 
   constructor(
     private readonly serialNumberGenerator: SerialNumberGenerator,
@@ -23,6 +25,8 @@ export class GeneratorService {
     private readonly taiwanMobilePhoneGenerator: TaiwanMobilePhoneGenerator,
     private readonly scaleGenerator: ScaleGenerator,
     private readonly singleChoiceGenerator: SingleChoiceGenerator,
+    private readonly chinaIdCardGenerator: ChinaIdCardGenerator,
+    private readonly chinaMobilePhoneGenerator: ChinaMobilePhoneGenerator,
     private readonly llmService: LlmService,
   ) {
     this.strategies.set('serial-number', this.serialNumberGenerator);
@@ -31,11 +35,13 @@ export class GeneratorService {
     this.strategies.set('taiwan-mobile-phone', this.taiwanMobilePhoneGenerator);
     this.strategies.set('scale', this.scaleGenerator);
     this.strategies.set('single-choice', this.singleChoiceGenerator);
+    this.strategies.set('china-id-card', this.chinaIdCardGenerator);
+    this.strategies.set('china-mobile-phone', this.chinaMobilePhoneGenerator);
   }
 
   public async generateDataSet(payload: GenerateDataDto): Promise<Buffer> {
     // 每次請求開始時，清空快取
-    this.llmCache.clear();
+    this.requestCache.clear();
     const { rows, fields } = payload;
 
     // --- 步驟 A: 預先處理並批次獲取所有 LLM 數據 ---
@@ -51,7 +57,7 @@ export class GeneratorService {
     // 2. 為每個 LLM 類型建立一個批次獲取 Promise
     const fetchPromises = Array.from(llmTasks.entries()).map(([type, count]) =>
       this.llmService.generateBatchForType(type, count).then((results) => {
-        this.llmCache.set(type, results); // 將結果存入快取
+        this.requestCache.set(type, results); // 將結果存入快取
       }),
     );
 
@@ -70,7 +76,7 @@ export class GeneratorService {
         generatedColumns[name] = await strategy.generate(rows, options);
       } else {
         // 如果是 LLM 類型，從快取中提取數據
-        const cachedResults = this.llmCache.get(type) || [];
+        const cachedResults = this.requestCache.get(type) || [];
         // 使用 splice 來取出所需數量，並從快取中移除，避免重複使用
         const columnData = cachedResults.splice(0, rows);
         generatedColumns[name] = columnData;
@@ -90,89 +96,160 @@ export class GeneratorService {
   public async generateCoherentSurveySet(
     payload: CoherentSurveyDto,
   ): Promise<Buffer> {
+    this.requestCache.clear();
     const { rows, questions } = payload;
 
-    // 1. 建立一個批次請求的 Prompt
-    const prompt = this._buildCoherentSurveyPrompt(questions, rows);
+    const coherentLlmQuestions: any[] = [];
+    const independentLlmQuestions: any[] = [];
+    const ruleBasedQuestions: any[] = [];
 
-    // 2. 進行單次的 LLM API 呼叫
-    const llmResponse = await this.llmService.generateWithPrompt(prompt);
-
-    let surveyResponses: object[] = [];
-    try {
-      // 3. 增強的解析邏輯，這次用來提取 [...] 陣列
-      const jsonMatch = llmResponse.match(/\[[\s\S]*\]/);
-
-      if (jsonMatch && jsonMatch[0]) {
-        const jsonString = jsonMatch[0];
-        surveyResponses = JSON.parse(jsonString);
+    for (const q of questions) {
+      if (q.generatorType === 'llm-answer') {
+        coherentLlmQuestions.push(q);
+      } else if (this.strategies.has(q.generatorType)) {
+        ruleBasedQuestions.push(q);
       } else {
-        throw new Error('No valid JSON array found in LLM response.');
+        independentLlmQuestions.push(q);
       }
-
-      // 驗證回傳的數量是否足夠
-      if (surveyResponses.length < rows) {
-        console.warn(
-          `LLM was asked for ${rows} responses, but returned only ${surveyResponses.length}.`,
-        );
-      }
-    } catch (error) {
-      console.error(
-        'Failed to parse LLM survey response as JSON array. Content:',
-        llmResponse,
-      );
-      // 如果解析失敗，可以回傳一個包含錯誤訊息的 Excel
-      const errorResponse = [
-        {
-          error: '無法解析 LLM 回傳的問卷數據',
-          originalResponse: llmResponse,
-        },
-      ];
-      return this._convertToExcelBuffer(errorResponse);
     }
 
-    // 4. 將成功解析的陣列直接傳給 Excel 生成器
+    // 1. 預先處理所有「規則生成」的欄位
+    const ruleGenPromises = ruleBasedQuestions.map(async (q) => {
+      const strategy = this.strategies.get(q.generatorType);
+      if (strategy) {
+        const results = await strategy.generate(rows, q.options || {});
+        this.requestCache.set(q.name, results);
+      }
+    });
+
+    const independentLlmTasks = new Map<string, any[]>();
+    // 3.1 聚合相同類型的請求
+    for (const q of independentLlmQuestions) {
+      if (!independentLlmTasks.has(q.generatorType)) {
+        independentLlmTasks.set(q.generatorType, []);
+      }
+      independentLlmTasks.get(q.generatorType)!.push(q);
+    }
+
+    // 3.2 為聚合後的任務建立批次生成 Promise
+    const independentLlmGenPromises = Array.from(
+      independentLlmTasks.entries(),
+    ).map(async ([type, questionsOfType]) => {
+      const totalNeeded = questionsOfType.length * rows;
+      const results = await this.llmService.generateBatchForType(
+        type,
+        totalNeeded,
+      );
+      // 3.3 將返回的一大批結果，分配給對應的欄位並存入快取
+      for (let i = 0; i < questionsOfType.length; i++) {
+        const q = questionsOfType[i];
+        const startIndex = i * rows;
+        const endIndex = startIndex + rows;
+        this.requestCache.set(q.name, results.slice(startIndex, endIndex));
+      }
+    });
+    await Promise.all([...ruleGenPromises, ...independentLlmGenPromises]);
+
+    const surveyPromises = Array.from({ length: rows }, (_, index) =>
+      this._generateSingleHybridRow(questions, index, coherentLlmQuestions),
+    );
+
+    const surveyResponses = await Promise.all(surveyPromises);
+
     return this._convertToExcelBuffer(surveyResponses);
   }
 
-  private _buildCoherentSurveyPrompt(questions: any[], rows: number): string {
-    const questionLines = questions
-      .map(
-        (q, index) =>
-          `${index + 1}. ${q.question} (欄位名: ${q.name}, 類型: ${q.type}${q.options ? ', 選項: ' + q.options.join('/') : ''})`,
-      )
+  private async _generateSingleHybridRow(
+    allQuestions: any[],
+    rowIndex: number,
+    coherentLlmQuestions: any[],
+  ): Promise<object> {
+    const currentRow: { [key: string]: any } = {};
+
+    // 步驟 A: 從快取中讀取所有「非連貫性」的數據
+    for (const q of allQuestions) {
+      if (q.generatorType !== 'llm-answer') {
+        const cachedColumn = this.requestCache.get(q.name) || [];
+        currentRow[q.name] = cachedColumn[rowIndex];
+      }
+    }
+
+    // 步驟 B: 處理需要上下文的「連貫性 LLM 型」問題
+    if (coherentLlmQuestions.length > 0) {
+      const context = Object.entries(currentRow)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join('\n');
+
+      const prompt = this._buildHybridPrompt(context, coherentLlmQuestions);
+      const llmResponseString =
+        await this.llmService.generateWithPrompt(prompt);
+
+      try {
+        const jsonMatch = llmResponseString.match(/{[\s\S]*}/);
+        if (!jsonMatch) throw new Error('No JSON object found');
+        const llmAnswers = JSON.parse(jsonMatch[0]);
+        Object.assign(currentRow, llmAnswers);
+      } catch (error) {
+        console.error(
+          'Failed to parse coherent LLM response in hybrid mode:',
+          llmResponseString,
+        );
+        coherentLlmQuestions.forEach((q) => {
+          currentRow[q.name] = 'LLM PARSE ERROR';
+        });
+      }
+    }
+
+    return currentRow;
+  }
+
+  private _buildHybridPrompt(context: string, llmQuestions: any[]): string {
+    const questionLines = llmQuestions
+      .map((q) => {
+        let formatHint = '';
+        // 根據前端傳來的 answerType 決定格式提示
+        switch (q.answerType) {
+          case '單選':
+            const choices = q.options?.choices || '[]';
+            formatHint = `您的回答必須嚴格地從以下選項中選擇一個: [${choices}]`;
+            break;
+          case '數字':
+            formatHint = '您的回答必須是一個數字。';
+            break;
+          case '是非':
+            formatHint = '您的回答必須是「是」或「否」。';
+            break;
+          default: // 簡答
+            formatHint = '請用一句話簡短回答。';
+            break;
+        }
+        return `- 問題: "${q.question}" (欄位名: ${q.name})\n  格式要求: ${formatHint}`;
+      })
       .join('\n');
 
-    const jsonFormatExample = questions.reduce((acc, q) => {
+    const jsonFormatExample = llmQuestions.reduce((acc, q) => {
       acc[q.name] = '你的答案';
       return acc;
     }, {});
 
-    const promptTemplate = `
-      你現在是一位虛構人物生成器。請根據以下的問卷題目，生成 ${rows} 份完整、符合邏輯、且**各自不同**的受訪者回答。
+    return `
+      你是一位正在填寫問卷的受訪者。關於你本人，已經有一些已知資訊，請根據這些資訊，扮演一個符合這些資訊的虛構人物來回答以下問題。
 
-      問卷題目:
+      # 已知資訊:
+      ${context || '無'}
+
+      # 需要回答的問題 (包含格式要求):
       ${questionLines}
 
-      重要規則:
-      1. 生成的 ${rows} 份回答必須代表 ${rows} 個**不同**的人物畫像，展現多樣性。
-      2. 每一份回答內部都必須前後連貫，符合常理。例如，如果「性別」回答為「男」，則「是否懷孕」的回答必須為「否」。
-      3. 請嚴格按照下面的 JSON 陣列格式回傳你的答案，不要包含任何額外的解釋或文字。
-
-      JSON 格式範例 (一個包含 ${rows} 個物件的陣列):
-      [
-        ${JSON.stringify(jsonFormatExample, null, 2)},
-        {
-          "gender": "...",
-          "age": "...",
-          "is_pregnant": "...",
-          "occupation": "..."
-        },
-        ...
-      ]
-    `;
-
-    return promptTemplate.trim();
+      # 重要規則:
+      1. 你扮演的角色必須與上述「已知資訊」的客觀事實保持一致（例如，身分證號碼所隱含的資訊）。
+      2. 你的其餘回答應該圍繞這個角色展開，使其看起來像一個真實的人。
+      3. 每個回答都必須嚴格遵守其「格式要求」。
+      4. 請嚴格按照下面的 JSON 格式回傳你需要回答問題的答案，不要包含任何額外解釋或文字。
+      
+      # JSON 格式範例:
+      ${JSON.stringify(jsonFormatExample, null, 2)}
+    `.trim();
   }
 
   private _convertToExcelBuffer(dataAsRows: any[]): Buffer {
