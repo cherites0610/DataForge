@@ -29,8 +29,6 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req) {
-    // 走到這裡，代表 LocalStrategy 的 validate 已經成功執行
-    // Passport 會自動將回傳的 user 物件附加到 req.user
     return this.authService.login(req.user);
   }
 
@@ -43,9 +41,8 @@ export class AuthController {
   async googleAuthRedirect(@Request() req, @Res() res) {
     // 登入成功後，Passport 會將 user 物件附加到 req.user
     const { access_token } = await this.authService.login(req.user);
-    const redirectUrl = this.configService.get<string>(
-      'GOOGLE_CALLBACK_REDIRECT_URL',
-    );
+    const redirectUrl = `${this.configService.get<string>('FRONTEND_URL')}/auth/callback`;
+
     return res.redirect(`${redirectUrl}?token=${access_token}`);
   }
 
@@ -57,9 +54,7 @@ export class AuthController {
   @UseGuards(AuthGuard('line'))
   async lineAuthRedirect(@Request() req, @Res() res) {
     const { access_token } = await this.authService.login(req.user);
-    const redirectUrl = this.configService.get<string>(
-      'LINE_CALLBACK_REDIRECT_URL',
-    );
+    const redirectUrl = `${this.configService.get<string>('FRONTEND_URL')}/auth/callback`;
     return res.redirect(`${redirectUrl}?token=${access_token}`);
   }
 

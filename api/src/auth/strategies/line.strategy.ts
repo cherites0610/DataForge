@@ -13,7 +13,7 @@ export class LineStrategy extends PassportStrategy(Strategy, 'line') {
     super({
       channelID: configService.get<string>('LINE_CHANNEL_ID'),
       channelSecret: configService.get<string>('LINE_CHANNEL_SECRET'),
-      callbackURL: 'http://localhost:3000/api/auth/line/callback', // LINE 重新導向回後端的 URL
+      callbackURL: `${configService.get<string>('BACKEND_URL')}/api/auth/line/callback`, // LINE 重新導向回後端的 URL
       scope: ['profile', 'openid', 'email'],
     });
   }
