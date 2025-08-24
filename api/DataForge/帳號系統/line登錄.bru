@@ -1,0 +1,15 @@
+meta {
+  name: line登錄
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{local_url}}/auth/line
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

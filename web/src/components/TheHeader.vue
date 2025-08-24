@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router' // 1. 引入 useRouter
 import UsageGuideDialog from './UsageGuideDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { ArrowDown } from '@element-plus/icons-vue' // 2. 引入 dropdown 需要的圖示
+import { ArrowDown } from '@element-plus/icons-vue'
 
 const usageGuideDialogRef = ref<InstanceType<typeof UsageGuideDialog> | null>(null)
 const authStore = useAuthStore()
@@ -13,12 +13,17 @@ const openUsageGuide = () => {
   usageGuideDialogRef.value?.open()
 }
 
-// 4. 建立處理 dropdown 命令的函式
-const handleCommand = (command: string) => {
-  if (command === 'profile') {
-    router.push('/profile')
-  } else if (command === 'logout') {
-    authStore.logout()
+const handleCommand = (command: string | number | object) => {
+  switch (command) {
+    case 'profile':
+      router.push('/profile')
+      break
+    case 'guide':
+      openUsageGuide()
+      break
+    case 'logout':
+      authStore.logout()
+      break
   }
 }
 </script>
@@ -33,25 +38,22 @@ const handleCommand = (command: string) => {
         </RouterLink>
 
         <div class="flex items-center space-x-4">
-          <RouterLink to="/">
-            <el-button text bg>首頁</el-button>
-          </RouterLink>
-          <RouterLink to="/prompts">
-            <el-button text bg>Prompt 庫</el-button>
-          </RouterLink>
-          <el-button text bg @click="openUsageGuide">使用教學</el-button>
-
           <template v-if="authStore.isAuthenticated">
+            <RouterLink to="/dashboard"><el-button text bg>儀表板</el-button></RouterLink>
+            <RouterLink to="/generator"><el-button text bg>生成器</el-button></RouterLink>
+            <RouterLink to="/prompts"><el-button text bg>Prompt 庫</el-button></RouterLink>
+            <el-divider direction="vertical" />
             <el-dropdown @command="handleCommand">
               <span
                 class="el-dropdown-link flex items-center cursor-pointer text-gray-600 hover:text-blue-500"
               >
                 歡迎, {{ authStore.user?.email }}
-                <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="profile">個人資料與用量</el-dropdown-item>
+                  <el-dropdown-item command="profile">個人資料</el-dropdown-item>
+                  <el-dropdown-item command="guide">使用教學</el-dropdown-item>
                   <el-dropdown-item command="logout" divided>登出</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -59,6 +61,7 @@ const handleCommand = (command: string) => {
           </template>
 
           <template v-else>
+            <el-button text bg @click="openUsageGuide">使用教學</el-button>
             <RouterLink to="/login"><el-button plain>登入</el-button></RouterLink>
             <RouterLink to="/register"><el-button type="primary">註冊</el-button></RouterLink>
           </template>

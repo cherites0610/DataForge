@@ -4,15 +4,25 @@ import PromptLibraryView from '@/views/PromptLibraryView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import LoginView from '@/views/LoginView.vue'
 import VerifyEmailView from '@/views/VerifyEmailView.vue'
+import AuthCallbackView from '@/views/AuthCallbackView.vue'
 import { useAuthStore } from '@/stores/auth'
+import DashboardView from '@/views/DashboardView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    { path: '/', name: 'home', redirect: '/dashboard' }, // 將根目錄重導向到儀表板
     {
-      path: '/',
+      path: '/dashboard',
+      name: 'dashboard',
+      component: DashboardView,
+      // meta: { requiresAuth: true },
+    },
+    {
+      path: '/generator',
       name: 'generator',
       component: GeneratorView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/prompts',
@@ -27,6 +37,11 @@ const router = createRouter({
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/auth/callback',
+      name: 'auth-callback',
+      component: AuthCallbackView,
     },
   ],
 })

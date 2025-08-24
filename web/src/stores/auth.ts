@@ -59,5 +59,29 @@ export const useAuthStore = defineStore('auth', () => {
     return api.verifyEmail(token)
   }
 
-  return { token, user, isAuthenticated, login, register, logout, fetchUserProfile, verifyEmail }
+  async function handleSocialLoginCallback(tokenFromUrl: string) {
+    if (tokenFromUrl) {
+      // 1. 儲存從 URL 拿到的 token
+      setToken(tokenFromUrl)
+      // 2. 獲取使用者資訊
+      await fetchUserProfile()
+      // 3. 導向到主頁
+      await router.push('/')
+    } else {
+      // 如果 URL 沒有 token，拋出錯誤
+      throw new Error('No token provided in callback.')
+    }
+  }
+
+  return {
+    token,
+    user,
+    isAuthenticated,
+    login,
+    register,
+    logout,
+    fetchUserProfile,
+    verifyEmail,
+    handleSocialLoginCallback,
+  }
 })

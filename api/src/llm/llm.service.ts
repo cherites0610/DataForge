@@ -9,13 +9,14 @@ import { OpenaiStrategy } from './strategies/openai.strategy';
 import { ILlmStrategy, LlmResponse } from './strategies/llm.strategy.interface';
 import CircuitBreaker from 'opossum';
 import { ConfigService } from '@nestjs/config';
-import { GeminiStrategy } from './strategies/gemini.strategy';
 import {
   RateLimiterMemory,
   RateLimiterRedis,
   RateLimiterRes,
 } from 'rate-limiter-flexible';
 import Redis from 'ioredis';
+import { GeminiStrategy } from './strategies/gemini.strategy';
+import { QwenStrategy } from './strategies/qwen.strategy';
 
 @Injectable()
 export class LlmService implements OnModuleInit {
@@ -31,11 +32,13 @@ export class LlmService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly geminiStrategy: GeminiStrategy,
     private readonly openaiStrategy: OpenaiStrategy,
+    private readonly qwenStrategy: QwenStrategy,
   ) {}
 
   onModuleInit() {
     this.strategies.set('openai', this.openaiStrategy);
     this.strategies.set('gemini', this.geminiStrategy);
+    this.strategies.set('qwen', this.qwenStrategy);
 
     this.providerOrder = this.configService
       .get<string>('LLM_PROVIDER_ORDER', 'gemini,openai')

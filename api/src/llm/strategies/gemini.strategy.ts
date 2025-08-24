@@ -22,7 +22,6 @@ export class GeminiStrategy implements ILlmStrategy {
         },
       });
       const result = await model.generateContent(prompt);
-      console.log(result);
 
       const response = result.response;
       const text = response.text();
@@ -34,6 +33,7 @@ export class GeminiStrategy implements ILlmStrategy {
           completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
           totalTokens: response.usageMetadata?.totalTokenCount ?? 0,
         },
+        provider: 'gemini-1.5-flash',
       };
     } catch (error) {
       console.error('Gemini API Error:', error);

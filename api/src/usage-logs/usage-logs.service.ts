@@ -11,7 +11,7 @@ export class UsageLogsService {
   constructor(
     @InjectRepository(UsageLog)
     private logsRepository: Repository<UsageLog>,
-    @InjectRepository(User) // 注入 User Repository
+    @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
 
@@ -56,11 +56,13 @@ export class UsageLogsService {
     }
 
     const tokensConsumed = payload.details.tokenUsage?.totalTokens || 0;
+    user.monthlyTokensUsed =
+      Number(user.monthlyTokensUsed) + Number(tokensConsumed);
 
     // 檢查額度
     if (
       user.monthlyTokenLimit !== -1 &&
-      user.monthlyTokensUsed + tokensConsumed > user.monthlyTokenLimit
+      user.monthlyTokensUsed > user.monthlyTokenLimit
     ) {
       // 雖然是事後檢查，但可以發出警告或標記帳號
       // 為了實現「事前攔截」，這個檢查需要放在 GeneratorService 中
@@ -69,7 +71,6 @@ export class UsageLogsService {
     }
 
     // 更新用量並記錄日誌
-    user.monthlyTokensUsed += tokensConsumed;
     await this.usersRepository.save(user);
     await this.logAction(
       payload.userId,

@@ -29,6 +29,7 @@ export class OpenaiStrategy implements ILlmStrategy {
           completionTokens: usage.completion_tokens,
           totalTokens: usage.total_tokens,
         },
+        provider: 'gpt-3.5-turbo',
       };
     } catch (error) {
       console.error('OpenAI API Error:', error);

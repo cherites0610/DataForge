@@ -74,4 +74,35 @@ export class AuthService {
 
     return true;
   }
+
+  async findOrCreateSocialUser(details: {
+    email: string;
+    googleId?: string;
+    lineId?: string;
+  }): Promise<User> {
+    let user: User | undefined;
+    if (details.googleId) {
+      user = await this.usersService.findOneByGoogleId(details.googleId);
+    } else if (details.lineId) {
+      user = await this.usersService.findOneByLineId(details.lineId); // <-- 新增的判斷
+    }
+
+    if (user) return user;
+
+    // 如果 social ID 不存在，嘗試用 email 尋找
+    user = await this.usersService.findOneByEmail(details.email);
+    if (user) {
+      // 如果 email 已存在，將 social ID 綁定到現有帳號
+      user.googleId = details.googleId || user.googleId;
+      user.lineId = details.lineId || user.lineId;
+      return this.usersService.save(user);
+    }
+
+    return this.usersService.create({
+      email: details.email,
+      googleId: details.googleId,
+      lineId: details.lineId,
+      isEmailVerified: true,
+    });
+  }
 }

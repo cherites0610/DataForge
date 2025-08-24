@@ -10,6 +10,7 @@ const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const formData = reactive<LoginCredentials>({ email: '', password: '' })
 const isLoading = ref(false)
+const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const rules = reactive<FormRules>({
   email: [{ required: true, message: '請輸入 Email', trigger: 'blur' }],
@@ -59,7 +60,24 @@ const handleSubmit = async (formEl: FormInstance | undefined) => {
           >
         </el-form-item>
       </el-form>
-      <div class="text-center mt-4">
+      <el-divider>或透過以下方式繼續</el-divider>
+
+      <div class="space-y-4">
+        <a :href="`${backendUrl}/auth/google`" class="block">
+          <el-button class="w-full">
+            <img src="/google-icon.svg" alt="Google" class="w-5 h-5 mr-2" />
+            使用 Google 繼續
+          </el-button>
+        </a>
+        <div :href="`${backendUrl}/auth/line`" class="block">
+          <el-button class="w-full">
+            <img src="/line-icon.svg" alt="LINE" class="w-5 h-5 mr-2" />
+            使用 LINE 繼續（未開放）
+          </el-button>
+        </div>
+      </div>
+
+      <div class="text-center mt-6">
         <span class="text-gray-600">還沒有帳號？</span>
         <RouterLink to="/register" class="text-blue-500 hover:underline">立即註冊</RouterLink>
       </div>

@@ -1,12 +1,11 @@
 auth {
-  mode: apikey
+  mode: bearer
 }
 
-auth:apikey {
-  key: x-api-key
-  value: cherites
-  placement: header
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImNoZXJpdGVzMDYxMEBnbWFpbC5jb20iLCJzdWIiOiJhNGMxZTQwNC05ZjM2LTRlMWQtOGI0OC00YjMxYjcyMjUwNzEiLCJyb2xlIjoidXNlciIsImlhdCI6MTc1NjA0NDgzMywiZXhwIjoxNzU2MTMxMjMzfQ.r-SD0NnLMS3NnDNOccz0nd5NRxSyRFhXXj6BkLc_Atc
 }
+
 vars:pre-request {
   local_url: http://localhost:3000/api
 }

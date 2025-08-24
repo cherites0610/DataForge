@@ -7,6 +7,7 @@ export interface LlmUsage {
 export interface LlmResponse {
   response: string;
   usage: LlmUsage;
+  provider: string;
 }
 
 export interface ILlmStrategy {

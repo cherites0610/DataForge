@@ -4,9 +4,6 @@ import { AppService } from './app.service';
 import { GeneratorModule } from './generator/generator.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LlmModule } from './llm/llm.module';
-import { UsageController } from './usage/usage.controller';
-import { UsageService } from './usage/usage.service';
-import { UsageModule } from './usage/usage.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PromptTemplatesModule } from './prompt-templates/prompt-templates.module';
 import { PlansModule } from './plans/plans.module';
@@ -17,6 +14,7 @@ import { PassportModule } from '@nestjs/passport';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { EmailModule } from './email/email.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -35,15 +33,15 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       }),
     }),
     LlmModule,
-    UsageModule,
     PromptTemplatesModule,
     PlansModule,
     UsersModule,
     UsageLogsModule,
     AuthModule,
     EmailModule,
+    DashboardModule,
   ],
-  controllers: [AppController, UsageController],
-  providers: [AppService, UsageService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
